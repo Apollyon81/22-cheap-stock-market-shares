@@ -1,0 +1,27 @@
+
+body {
+    font-family: 'Quando', serif;
+    background-color: rgb(255, 255, 255);
+    color: rgb(0, 0, 0);
+}
+
+header {
+    background-color: rgb(202, 202, 202);
+    display: flex;
+    height: 80px;
+    align-items: center;
+    width: 100vw;
+}
+
+nav {
+    margin-left: 180px;
+    margin-right: 180px;
+}
+
+.logo p{
+    font-size: 140px;
+}
+
+.presentation {
+    font-size: 35px;
+}
