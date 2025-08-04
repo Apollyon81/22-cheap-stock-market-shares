@@ -1,0 +1,6 @@
+- 20 ações mais baratas da bolso da bolsa.
+- Puxando todas ações da b3.
+- aplicando filtro.
+- ordem alfabetica.
+- empresas sem estar em recuperação judicial.
+- padrão IBTDA
