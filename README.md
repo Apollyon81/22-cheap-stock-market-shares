@@ -4,3 +4,6 @@
 - ordem alfabetica.
 - empresas sem estar em recuperação judicial.
 - padrão IBTDA
+- Reservar espaço para publicidade.
+
+prazo 30 dias.
