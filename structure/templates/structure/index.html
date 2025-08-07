@@ -1,0 +1,36 @@
+{% load static %}
+
+
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>22 cheap stocks</title>
+    <link href="{% static '/css/style.css' %}" rel="stylesheet" type="text/css" media="all">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <p>22 CHEAP STOCKS</p>
+            </div>
+        </nav>
+    </header>
+    <section class="how">
+        <div class="presentation">
+            <p> Our goal is to identify the top 22 budget-friendly stocks. We achieve this by ensuring they exhibit strong liquidity, a favorable EBIT margin, and an appealing EV/EBIT value. </p>
+        </div>
+        <div class="filters">
+            <p>The filters applied are:</p>
+            <p>
+                -Liquidity: This is about how easily a company can turn its assets into cash without losing much value. First, we check if a company has less than 1 million in liquidity, and if it does, we exclude it from our list. <br>
+
+                -EBIT Margin: This metric measures how well a company is doing in its main operations, without considering interest and taxes. If a company has a negative EBIT margin or no data available (N/A), we remove it from consideration. <br>
+
+                -EV/EBIT: This metric helps us see if a company's value is attractive compared to its operational profit. If the "EV/EBIT" value is low, it suggests the company might be a good deal for investors. <br>
+            </p>
+        </div>
+    </section>
+</body>
+</html>
