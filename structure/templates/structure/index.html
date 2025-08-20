@@ -2,35 +2,52 @@
 
 
 <!DOCTYPE html>
-<html lang="en-US">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>22 cheap stocks</title>
-    <link href="{% static '/css/style.css' %}" rel="stylesheet" type="text/css" media="all">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+
 </head>
 <body>
     <header>
         <nav>
             <div class="logo">
-                <p>22 CHEAP STOCKS</p>
+                <p>22 AÇÕES BARATAS</p>
             </div>
         </nav>
     </header>
     <section class="how">
         <div class="presentation">
-            <p> Our goal is to identify the top 22 budget-friendly stocks. We achieve this by ensuring they exhibit strong liquidity, a favorable EBIT margin, and an appealing EV/EBIT value. </p>
-        </div>
-        <div class="filters">
-            <p>The filters applied are:</p>
-            <p>
-                -Liquidity: This is about how easily a company can turn its assets into cash without losing much value. First, we check if a company has less than 1 million in liquidity, and if it does, we exclude it from our list. <br>
+                <p> Nosso objetivo é identificar as 22 ações mais acessíveis do mercado. Fazemos isso garantindo que elas apresentem forte liquidez, uma margem EBIT favorável e um valor EV/EBIT atrativo. </p>
+            </div>
+            <div class="filters">
+                <p>Os filtros aplicados são:</p>
+                <p>
+                    - Liquidez: Refere-se à facilidade com que uma empresa pode converter seus ativos em dinheiro sem perder muito valor. Ações com volume médio diário de negociação abaixo de R$ 1 milhão (para recomendações públicas) ou R$ 5 milhões (para backtests) são excluídas para garantir negociabilidade. <br>
 
-                -EBIT Margin: This metric measures how well a company is doing in its main operations, without considering interest and taxes. If a company has a negative EBIT margin or no data available (N/A), we remove it from consideration. <br>
+                    - Margem EBIT: Essa métrica avalia o desempenho da empresa em suas operações principais, excluindo juros e impostos. Se a margem EBIT for negativa ou indisponível (N/A), a empresa é excluída. <br>
 
-                -EV/EBIT: This metric helps us see if a company's value is attractive compared to its operational profit. If the "EV/EBIT" value is low, it suggests the company might be a good deal for investors. <br>
-            </p>
-        </div>
+                    - EV/EBIT: Essa métrica ajuda a identificar se a avaliação da empresa é atrativa em relação ao seu lucro operacional. Um EV/EBIT baixo sugere que a empresa pode estar subvalorizada e ser interessante para investidores. <br>
+
+                    - EBIT e EPS Positivos: A empresa deve apresentar EBIT (lucro operacional) e EPS (lucro por ação) positivos. Se qualquer um dos valores for zero ou negativo, a ação é removida. <br>
+
+                    - Exclusão de Receitas Não Recorrentes: Empresas com lucros impulsionados por itens extraordinários ou pontuais são excluídas para evitar distorções no cálculo do Earning Yield. <br>
+
+                    - Problemas Jurídicos ou Contábeis: Empresas em recuperação judicial ou suspeitas de irregularidades contábeis são excluídas, mesmo que não haja declaração oficial.
+                </p>
+            </div>
+
+
+            <div class="container-tabela">
+                <h1>Tabela de Ações Filtradas</h1>
+            <div class="tabela">
+                {{ tabela_html|safe }}
+            </div>
+            </div>
+        </div>            
     </section>
 </body>
 </html>

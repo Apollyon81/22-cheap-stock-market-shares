@@ -1,0 +1,40 @@
+header {
+    display: flex;
+    height: 80px;
+    align-items: center;
+    width: 100vw;
+}
+
+.logo p{
+    font-size: 40px;
+    align-items: center;
+    margin-top: 30px;
+    color: #146500;
+    font-weight: 600;
+}
+
+.presentation {
+    margin-top: 80px;
+    font-size: 25px;
+}
+
+p {
+    margin-left: 180px;
+    margin-right: 180px;
+}
+
+.tabela {
+   margin-top: 40px;
+}   
+
+.container-tabela {
+    background-color: rgb(210, 210, 210);
+    margin-top: 200px;
+    margin-right: 280px;
+    margin-left: 280px;
+}
+
+.table thead th {
+  text-align: left;
+}
+
