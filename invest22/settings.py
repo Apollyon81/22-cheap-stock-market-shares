@@ -137,3 +137,13 @@ ALLOWED_HOSTS = ['*', '22-cheap-stock-market-shares.vercel.app']
 STATIC_URL = '/static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+ALLOWED_HOSTS = ['*', '22-cheap-stock-market-shares.vercel.app']
+
+STATIC_URL = '/static/'
+
+ALLOWED_HOSTS = ['*', '22-cheap-stock-market-shares.vercel.app']
+
+STATIC_URL = '/static/'
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
