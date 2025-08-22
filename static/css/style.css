@@ -1,40 +1,144 @@
+/* HEADER */
 header {
     display: flex;
-    height: 80px;
     align-items: center;
-    width: 100vw;
+    justify-content: space-between; /* antes era center + gap fixo */
+    height: 80px;
+    width: 100%;
+    padding: 0 11rem; /* respiro lateral ao invés de margin fixa */
+    background-color: rgba(241, 241, 255, 0.5);
 }
 
-.logo p{
-    font-size: 40px;
+/* NAV BAR */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  height: 80px;
+}
+
+.logo {
+    display: flex;
     align-items: center;
-    margin-top: 30px;
-    color: #146500;
+    height: 100%;
+}
+
+.logo p {
+    font-size: 30px;
     font-weight: 600;
 }
 
-.presentation {
-    margin-top: 80px;
-    font-size: 25px;
+.nav-list {
+  display: flex;
+  gap: 2rem; /* menor e responsivo */
+  flex-wrap: wrap; /* permite quebrar em telas menores */
 }
 
-p {
-    margin-left: 180px;
-    margin-right: 180px;
+.nav-list a {
+    padding: 8px 16px;
+    text-decoration: none;
+    color: rgb(0, 0, 0);
+    font-size: 20px;
+    font-weight: 520;
+}
+.nav-list a:hover {
+  color: #ffffff;
+  background-color: #007900;
 }
 
-.tabela {
-   margin-top: 40px;
-}   
-
-.container-tabela {
-    background-color: rgb(210, 210, 210);
-    margin-top: 200px;
-    margin-right: 280px;
-    margin-left: 280px;
+/* HERO / INICIO */
+.inicio {
+  height: 100vh;
+  overflow: hidden;
+  position: relative; /* necessário para o ::before */
 }
 
-.table thead th {
+.inicio::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('/static/images/download.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+  z-index: -2;
+}
+
+/* CONTEÚDO */
+.conteudo {
+  display: flex;
+  flex-wrap: nowrap; /* impede quebra feia */
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  gap: 4rem; /* reduzido, mais adaptável */
+  max-width: 1200px;
+  margin: 0 auto; /* centraliza ao invés de margin fixa */
+  padding: 2rem;
+}
+
+.presentation-text {
+  color: rgb(4, 0, 116);
+}
+
+/* TABELAS */
+.tabela-0 {
+   min-height: 800px;
+   max-width: 1000px;
+   margin: 0 auto; /* centralizado e responsivo */
+   padding: 2rem;
+}  
+
+.tabela-disc {
+  display: flex;
+  flex-wrap: wrap; /* não vaza em telas menores */
+  gap: 2rem;
+  font-size: 20px;
+}
+
+.tabela p {
+    font-size: 30px;
+}
+
+.table > thead > tr > th {
   text-align: left;
 }
 
+/* RESPONSIVIDADE */
+@media (max-width: 768px) {
+  header {
+    flex-direction: column;
+    height: auto;
+    padding: 1rem;
+  }
+
+  .nav-list {
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .conteudo {
+    gap: 2rem;
+    padding: 1rem;
+  }
+
+  .tabela-0 {
+    padding: 1rem;
+    min-height: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo p {
+    font-size: 22px;
+  }
+
+  .nav-list a {
+    font-size: 16px;
+    padding: 6px 12px;
+  }
+
+  .tabela p {
+    font-size: 22px;
+  }
+}
