@@ -132,18 +132,7 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-ALLOWED_HOSTS = ['*', '22-cheap-stock-market-shares.vercel.app']
+ALLOWED_HOSTS = ['*', '22-cheap-stock-market-shares-aohed5hlt-apollyon81s-projects.vercel.app']
 
 STATIC_URL = '/static/'
-
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-ALLOWED_HOSTS = ['*', '22-cheap-stock-market-shares.vercel.app']
-
-STATIC_URL = '/static/'
-
-ALLOWED_HOSTS = ['*', '22-cheap-stock-market-shares.vercel.app']
-
-STATIC_URL = '/static/'
-
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
