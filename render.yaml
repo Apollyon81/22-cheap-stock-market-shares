@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: 22exception
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn invest22.wsgi:application
