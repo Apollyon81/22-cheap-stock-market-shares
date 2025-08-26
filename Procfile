@@ -1,1 +1,1 @@
-web: gunicorn app:app
+web: gunicorn invest22.wsgi:application
