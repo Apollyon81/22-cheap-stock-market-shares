@@ -7,10 +7,7 @@ SECRET_KEY = "django-insecure-1gcp9h@8_sg$+(qap-6q!-)=b@d+^u0_(=8#tx(sunou@2vpqe
 
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'two2exception.onrender.com',
-    *os.environ.get("ALLOWED_HOSTS", "").split(",")
-]
+ALLOWED_HOSTS = ['two2exception.onrender.com', '127.0.0.1', 'localhost']
 
 
 
