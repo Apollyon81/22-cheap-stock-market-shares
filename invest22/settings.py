@@ -92,7 +92,7 @@ from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
     'update-stock-data': {
-        'task': 'scraping.tasks.update_stock_data',
+        'task': 'scraping.tasks.scheduled_scrape',
         'schedule': crontab(hour=18, minute=0),  # Executa todos os dias às 18h
     },
 }
