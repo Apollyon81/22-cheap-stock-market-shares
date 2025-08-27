@@ -7,7 +7,12 @@ SECRET_KEY = "django-insecure-1gcp9h@8_sg$+(qap-6q!-)=b@d+^u0_(=8#tx(sunou@2vpqe
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['*', '22-cheap-stock-market-shares-aohed5hlt-apollyon81s-projects.vercel.app']
+ALLOWED_HOSTS = [
+    'two2exception.onrender.com',
+    *os.environ.get("ALLOWED_HOSTS", "").split(",")
+]
+
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
