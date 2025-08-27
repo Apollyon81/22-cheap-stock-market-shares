@@ -7,3 +7,38 @@ services:
       python manage.py collectstatic --noinput
     startCommand: gunicorn invest22.wsgi:application
     staticPublishPath: ./staticfiles
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: celery-redis
+          property: connectionString
+
+  - type: redis
+    name: celery-redis
+    ipAllowList: []
+    plan: free
+
+  - type: worker
+    name: celery-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A invest22 worker --loglevel=info
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: celery-redis
+          property: connectionString
+
+  - type: worker
+    name: celery-beat
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A invest22 beat --loglevel=info
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: celery-redis
+          property: connectionString
