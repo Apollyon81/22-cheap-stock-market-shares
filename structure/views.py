@@ -3,6 +3,9 @@ import pandas as pd
 import os
 from django.conf import settings
 import logging
+from django.utils.timezone import now
+from datetime import datetime
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +24,27 @@ def home(request):
             )
             return render(request, "structure/index.html", {"tabela_html": mensagem})
         
+        # Verifica se os dados estão desatualizados (para possível atualização automática)
+        metadata_path = os.path.join(settings.BASE_DIR, 'media', 'metadata.json')
+        dados_desatualizados = False
+        
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                meta = json.load(f)
+            last_scrape = meta.get("last_scrape")
+            
+            if last_scrape:
+                last_dt = datetime.fromisoformat(last_scrape)
+                hoje = now().date()
+                # Detecta se scraping não é de hoje
+                dados_desatualizados = (last_dt.date() < hoje)
+        else:
+            # Metadata não existe = nunca foi feito scraping
+            dados_desatualizados = True
+        
+        # dados_desatualizados pode ser usado para acionar atualização automática se necessário
+
+
         # Lê o CSV já filtrado pelo comando scrape_data
         # Os dados já vêm formatados corretamente do filters.py
         df = pd.read_csv(
