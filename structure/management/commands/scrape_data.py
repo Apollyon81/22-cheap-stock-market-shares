@@ -11,6 +11,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from structure.filters import apply_filters
 from django.conf import settings
+import json
+from django.utils.timezone import now
+
+
 
 
 class Command(BaseCommand):
@@ -27,7 +31,9 @@ class Command(BaseCommand):
 
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
+        
 
+        
         try:
             driver.get(url)
 
@@ -99,7 +105,25 @@ class Command(BaseCommand):
             # Salva acoes_filtradas.csv (sem alterar conteúdo, apenas seleção e ordem)
             final_path = os.path.join(settings.BASE_DIR, 'media', 'acoes_filtradas.csv')
             df_final.to_csv(final_path, index=False, encoding='utf-8-sig')
-            self.stdout.write(self.style.SUCCESS(f"✔ acoes_filtradas.csv salvo: {final_path}"))
+            self.stdout.write(self.style.SUCCESS("✔ acoes_filtradas.csv salvo."))
+
+            # ============================================================
+            # PASSO 4 → METADATA (agora está no local correto)
+            # ============================================================
+            metadata = {
+                "last_scrape": now().isoformat(),
+                "rows_raw": len(df_raw),
+                "rows_filtered": len(df_final),
+                "source_url": url,
+                "status": "success"
+            }
+
+            metadata_path = os.path.join(settings.BASE_DIR, "media", "metadata.json")
+            with open(metadata_path, "w", encoding="utf-8") as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=4)
+
+            self.stdout.write(self.style.SUCCESS("✔ metadata.json salvo."))
+
 
         finally:
             driver.quit()

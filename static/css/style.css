@@ -85,13 +85,13 @@ header {
 .tabela-0 {
    min-height: 800px;
    max-width: 1000px;
-   margin: 0 auto; /* centralizado e responsivo */
+   margin: 0 auto; 
    padding: 2rem;
 }  
 
 .tabela-disc {
   display: flex;
-  flex-wrap: wrap; /* não vaza em telas menores */
+  flex-wrap: wrap;
   gap: 2rem;
   font-size: 20px;
 }
@@ -103,6 +103,7 @@ header {
 .table > thead > tr > th {
   text-align: left;
 }
+
 
 /* RESPONSIVIDADE */
 @media (max-width: 768px) {

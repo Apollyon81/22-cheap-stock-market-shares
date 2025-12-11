@@ -88,11 +88,17 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'America/Sao_Paulo'
 
-from celery.schedules import crontab
+try:
+    from celery.schedules import crontab
+except ImportError:
+    crontab = None
 
-CELERY_BEAT_SCHEDULE = {
-    'update-stock-data': {
-        'task': 'scraping.tasks.scheduled_scrape',
-        'schedule': crontab(hour=18, minute=0),  # Executa todos os dias às 18h
-    },
-}
+if crontab is not None:
+    CELERY_BEAT_SCHEDULE = {
+        'update-stock-data': {
+            'task': 'scraping.tasks.scheduled_scrape',
+            'schedule': crontab(hour=18, minute=0),
+        },
+    }
+else:
+    CELERY_BEAT_SCHEDULE = {}
