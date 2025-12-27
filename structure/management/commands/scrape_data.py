@@ -131,5 +131,32 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("✔ metadata.json salvo."))
 
 
+        except Exception as e:
+            # Em caso de erro, grava metadata com status de erro para facilitar debug
+            try:
+                metadata = {
+                    "last_scrape": now().isoformat(),
+                    "rows_raw": 0,
+                    "rows_filtered": 0,
+                    "source_url": url,
+                    "status": "error",
+                    "error": str(e)
+                }
+                metadata_path = os.path.join(settings.BASE_DIR, "media", "metadata.json")
+                meta_tmp = metadata_path + '.tmp'
+                os.makedirs(os.path.dirname(metadata_path), exist_ok=True)
+                with open(meta_tmp, "w", encoding="utf-8") as f:
+                    json.dump(metadata, f, ensure_ascii=False, indent=4)
+                os.replace(meta_tmp, metadata_path)
+                self.stdout.write(self.style.ERROR(f"Erro durante scraping: {e}. metadata.json atualizado com erro."))
+            except Exception:
+                # se falhar ao salvar metadata, apenas logamos
+                self.stdout.write(self.style.ERROR(f"Erro durante scraping e falha ao gravar metadata: {e}"))
+            finally:
+                driver.quit()
+            return
         finally:
-            driver.quit()
+            try:
+                driver.quit()
+            except Exception:
+                pass
