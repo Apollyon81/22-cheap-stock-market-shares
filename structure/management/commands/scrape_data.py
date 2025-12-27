@@ -68,7 +68,9 @@ class Command(BaseCommand):
             # Salva acoes_raw.csv exatamente como veio (sem alterações)
             raw_path = os.path.join(settings.BASE_DIR, 'media', 'acoes_raw.csv')
             os.makedirs(os.path.dirname(raw_path), exist_ok=True)
-            df_raw.to_csv(raw_path, index=False, encoding='utf-8-sig')
+            raw_tmp = raw_path + '.tmp'
+            df_raw.to_csv(raw_tmp, index=False, encoding='utf-8-sig')
+            os.replace(raw_tmp, raw_path)
             self.stdout.write(self.style.SUCCESS(f"✔ acoes_raw.csv salvo: {raw_path}"))
 
             # ============================================================
@@ -104,7 +106,9 @@ class Command(BaseCommand):
 
             # Salva acoes_filtradas.csv (sem alterar conteúdo, apenas seleção e ordem)
             final_path = os.path.join(settings.BASE_DIR, 'media', 'acoes_filtradas.csv')
-            df_final.to_csv(final_path, index=False, encoding='utf-8-sig')
+            final_tmp = final_path + '.tmp'
+            df_final.to_csv(final_tmp, index=False, encoding='utf-8-sig')
+            os.replace(final_tmp, final_path)
             self.stdout.write(self.style.SUCCESS("✔ acoes_filtradas.csv salvo."))
 
             # ============================================================
@@ -119,8 +123,10 @@ class Command(BaseCommand):
             }
 
             metadata_path = os.path.join(settings.BASE_DIR, "media", "metadata.json")
-            with open(metadata_path, "w", encoding="utf-8") as f:
+            meta_tmp = metadata_path + '.tmp'
+            with open(meta_tmp, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=4)
+            os.replace(meta_tmp, metadata_path)
 
             self.stdout.write(self.style.SUCCESS("✔ metadata.json salvo."))
 
