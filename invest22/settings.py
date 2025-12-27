@@ -96,7 +96,7 @@ except ImportError:
 if crontab is not None:
     CELERY_BEAT_SCHEDULE = {
         'update-stock-data': {
-            'task': 'scraping.tasks.scheduled_scrape',
+            'task': 'invest22.scraping.tasks.scheduled_scrape',
             'schedule': crontab(hour=18, minute=0),
         },
     }
