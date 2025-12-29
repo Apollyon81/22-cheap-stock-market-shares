@@ -7,9 +7,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>22 cheap stocks</title>
-    <script src="{% static 'js/script.js' %}"></script>
-    <link rel="stylesheet" href="static/css/style.css?v=123">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=123">
+    <script src="{% static 'js/script.js' %}"></script>
 
 </head>
 <body>
@@ -55,7 +55,7 @@
     <section class="tabela-0">
         <div class="container-tabela" id="container-tabela">
             <div class="tabela-disc">
-                <p>Relatorio do dia</p><span id="data-atual">{{ data_atual }}</span>
+                <p>Última Atualização</p><span id="data-atual">{{ data_atual }}</span>
             </div>
 
             <div class="tabela">
