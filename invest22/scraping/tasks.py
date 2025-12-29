@@ -1,11 +1,19 @@
 # invest22/scraping/tasks.py
-from celery import shared_task
+# Importação opcional do Celery para evitar erro se não estiver instalado
+try:
+    from celery import shared_task
+except (ImportError, ModuleNotFoundError):
+    # Se Celery não estiver disponível, cria um decorator dummy
+    def shared_task(func):
+        return func
+
 import os
 from django.conf import settings
 import logging
 import json
 from django.utils.timezone import now
 from datetime import datetime
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +37,10 @@ def scheduled_scrape():
                 if last_scrape:
                     try:
                         last_dt = datetime.fromisoformat(last_scrape)
-                        if last_dt.date() >= now().date():
-                            logger.info('Scraping já realizado hoje (%s). Pule executação.', last_scrape)
+                        # Comparar usando timezone de São Paulo
+                        hoje_sp = now().astimezone(pytz.timezone('America/Sao_Paulo')).date()
+                        if last_dt.date() >= hoje_sp:
+                            logger.info('Scraping já realizado hoje (%s). Pule execução.', last_scrape)
                             return 'Já atualizado hoje'
                     except Exception:
                         # se parse falhar, prossegue com a execução
@@ -63,4 +73,16 @@ def scheduled_scrape():
 
     except Exception as e:
         logger.exception('Erro durante a task scheduled_scrape:')
+        # Mesmo em caso de erro, tenta escrever metadata básica para debugging
+        try:
+            metadata_error = {
+                "last_scrape": now().isoformat(),
+                "error": str(e),
+                "status": "error"
+            }
+            metadata_path = os.path.join(settings.BASE_DIR, "media", "metadata.json")
+            with open(metadata_path, "w", encoding="utf-8") as f:
+                json.dump(metadata_error, f, ensure_ascii=False, indent=4)
+        except:
+            pass
         return f'Erro na atualização: {e}'
