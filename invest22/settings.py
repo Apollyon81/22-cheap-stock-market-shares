@@ -88,9 +88,10 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'America/Sao_Paulo'
 
+# Importação opcional do Celery para evitar erro durante deploy
 try:
     from celery.schedules import crontab
-except ImportError:
+except (ImportError, ModuleNotFoundError):
     crontab = None
 
 if crontab is not None:
