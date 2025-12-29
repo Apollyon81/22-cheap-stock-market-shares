@@ -37,9 +37,10 @@ def scheduled_scrape():
                 if last_scrape:
                     try:
                         last_dt = datetime.fromisoformat(last_scrape)
-                        # Comparar usando timezone de São Paulo
+                        # Converter last_dt para timezone de São Paulo antes de comparar
+                        last_dt_sp = last_dt.astimezone(pytz.timezone('America/Sao_Paulo'))
                         hoje_sp = now().astimezone(pytz.timezone('America/Sao_Paulo')).date()
-                        if last_dt.date() >= hoje_sp:
+                        if last_dt_sp.date() >= hoje_sp:
                             logger.info('Scraping já realizado hoje (%s). Pule execução.', last_scrape)
                             return 'Já atualizado hoje'
                     except Exception:
