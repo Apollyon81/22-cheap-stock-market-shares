@@ -6,7 +6,7 @@ header {
     height: 80px;
     width: 100%;
     padding: 0 11rem; /* respiro lateral ao invés de margin fixa */
-    background-color: rgba(241, 241, 255, 0.5);
+    background-color: rgba(0, 0, 0, 0.5);
 }
 
 /* NAV BAR */
@@ -14,6 +14,7 @@ header {
   display: flex;
   align-items: center;
   height: 80px;
+  color: rgb(254, 254, 254);
 }
 
 .logo {
@@ -36,12 +37,12 @@ header {
 .nav-list a {
     padding: 8px 16px;
     text-decoration: none;
-    color: rgb(0, 0, 0);
+    color: rgb(254, 254, 254);
     font-size: 20px;
     font-weight: 520;
 }
 .nav-list a:hover {
-  color: #ffffff;
+  color: #000000;
   background-color: #007900;
 }
 
@@ -50,14 +51,13 @@ header {
   height: 100vh;
   overflow: hidden;
   position: relative; /* necessário para o ::before */
+  background-color: #000000;
 }
 
 .inicio::before {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url('/static/images/download.webp');
-  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   opacity: 0.5;
@@ -77,21 +77,30 @@ header {
   padding: 2rem;
 }
 
-
+.presentation-text {
+  color: rgb(255, 255, 255);
+}
 
 /* TABELAS */
-.tabela-0 {
-   min-height: 800px;
-   max-width: 1000px;
+.container-tabela {
    margin: 0 auto; 
    padding: 2rem;
+   background-color: rgb(0, 0, 0);
+   color: rgb(255, 255, 255);
 }  
 
 .tabela-disc {
+  margin-left: 200px;
   display: flex;
   flex-wrap: wrap;
-  gap: 2rem;
   font-size: 20px;
+}
+
+.tabela {
+  margin-left: 250px;
+  margin-right: 250px;
+  background-color: rgb(0, 0, 0);
+  color: rgb(255, 255, 255);
 }
 
 .tabela p {
@@ -103,6 +112,15 @@ header {
 }
 
 
+
+.filtros {
+  color: rgb(255, 255, 255);
+}
+
+.table>tbody {
+  color: rgb(255, 255, 255);
+  background-color: rgb(0, 0, 0);
+}
 /* RESPONSIVIDADE */
 @media (max-width: 768px) {
   header {
