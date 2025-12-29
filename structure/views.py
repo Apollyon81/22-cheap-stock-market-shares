@@ -6,6 +6,7 @@ import logging
 from django.utils.timezone import now
 from datetime import datetime
 import json
+from django.utils import timezone as dj_tz
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +28,30 @@ def home(request):
         # Verifica se os dados estão desatualizados (para possível atualização automática)
         metadata_path = os.path.join(settings.BASE_DIR, 'media', 'metadata.json')
         dados_desatualizados = False
-        
+        data_atual = ''
+
         if os.path.exists(metadata_path):
-            with open(metadata_path, 'r', encoding='utf-8') as f:
-                meta = json.load(f)
-            last_scrape = meta.get("last_scrape")
-            
-            if last_scrape:
-                last_dt = datetime.fromisoformat(last_scrape)
-                hoje = now().date()
-                # Detecta se scraping não é de hoje
-                dados_desatualizados = (last_dt.date() < hoje)
+            try:
+                with open(metadata_path, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
+                last_scrape = meta.get("last_scrape")
+                if last_scrape:
+                    # converte para timezone local e formata como dd/mm/YYYY
+                    try:
+                        last_dt = datetime.fromisoformat(last_scrape)
+                        # converte para timezone do Django
+                        if last_dt.tzinfo is None:
+                            last_dt = dj_tz.make_aware(last_dt, dj_tz.UTC)
+                        last_local = last_dt.astimezone(dj_tz.get_current_timezone())
+                        data_atual = ' - ' + last_local.strftime('%d/%m/%Y')
+                        hoje = now().astimezone(dj_tz.get_current_timezone()).date()
+                        dados_desatualizados = (last_local.date() < hoje)
+                    except Exception:
+                        # falha ao parsear -> marca como desatualizado para acionar scraping
+                        dados_desatualizados = True
+            except Exception:
+                # Metadata não pôde ser lido
+                dados_desatualizados = True
         else:
             # Metadata não existe = nunca foi feito scraping
             dados_desatualizados = True
@@ -70,7 +84,7 @@ def home(request):
             border=0
         )
 
-        return render(request, "structure/index.html", {"tabela_html": tabela_html})
+        return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
 
     except FileNotFoundError:
         mensagem = (
