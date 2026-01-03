@@ -49,48 +49,36 @@ def home(request):
                        dtype=str
                    )
                    dados_desatualizados = True  # Dados locais podem estar desatualizados
-        
-        # Verifica se os dados estão desatualizados (para possível atualização automática)
-        metadata_path = os.path.join(settings.BASE_DIR, 'media', 'metadata.json')
-        dados_desatualizados = False
-        data_atual = ''
 
-        if os.path.exists(metadata_path):
-            try:
-                with open(metadata_path, 'r', encoding='utf-8') as f:
-                    meta = json.load(f)
-                last_scrape = meta.get("last_scrape")
-                if last_scrape:
-                    # converte para timezone local e formata como dd/mm/YYYY
-                    try:
-                        last_dt = datetime.fromisoformat(last_scrape)
-                        # converte para timezone do Django
-                        if last_dt.tzinfo is None:
-                            last_dt = dj_tz.make_aware(last_dt, dj_tz.UTC)
-                        last_local = last_dt.astimezone(dj_tz.get_current_timezone())
-                        data_atual = ' - ' + last_local.strftime('%d/%m/%Y')
-                        hoje = now().astimezone(dj_tz.get_current_timezone()).date()
-                        dados_desatualizados = (last_local.date() < hoje)
-                    except Exception:
-                        # falha ao parsear -> marca como desatualizado para acionar scraping
-                        dados_desatualizados = True
-            except Exception:
-                # Metadata não pôde ser lido
-                dados_desatualizados = True
-        else:
-            # Metadata não existe = nunca foi feito scraping
-            dados_desatualizados = True
-        
-        # dados_desatualizados pode ser usado para acionar atualização automática se necessário
+               # Verifica se os dados estão desatualizados (para possível atualização automática)
+               metadata_path = os.path.join(settings.BASE_DIR, 'media', 'metadata.json')
+               data_atual = ''
 
-
-        # Lê o CSV já filtrado pelo comando scrape_data
-        # Os dados já vêm formatados corretamente do filters.py
-        df = pd.read_csv(
-            csv_path,
-            encoding='utf-8-sig',
-            dtype=str  # mantém formato brasileiro
-        )
+               if os.path.exists(metadata_path):
+                   try:
+                       with open(metadata_path, 'r', encoding='utf-8') as f:
+                           meta = json.load(f)
+                       last_scrape = meta.get("last_scrape")
+                       if last_scrape:
+                           # converte para timezone local e formata como dd/mm/YYYY
+                           try:
+                               last_dt = datetime.fromisoformat(last_scrape)
+                               # converte para timezone do Django
+                               if last_dt.tzinfo is None:
+                                   last_dt = dj_tz.make_aware(last_dt, dj_tz.UTC)
+                               last_local = last_dt.astimezone(dj_tz.get_current_timezone())
+                               data_atual = ' - ' + last_local.strftime('%d/%m/%Y')
+                               hoje = now().astimezone(dj_tz.get_current_timezone()).date()
+                               dados_desatualizados = (last_local.date() < hoje)
+                           except Exception:
+                               # falha ao parsear -> marca como desatualizado para acionar scraping
+                               dados_desatualizados = True
+                   except Exception:
+                       # Metadata não pôde ser lido
+                       dados_desatualizados = True
+               else:
+                   # Metadata não existe = nunca foi feito scraping
+                   dados_desatualizados = True
         
         # Verifica se o DataFrame está vazio
         if df.empty:
