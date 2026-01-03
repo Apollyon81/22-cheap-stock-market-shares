@@ -11,19 +11,44 @@ from django.utils import timezone as dj_tz
 logger = logging.getLogger(__name__)
 
 def home(request):
-    try:
-        # Caminho do arquivo CSV
-        csv_path = os.path.join(settings.BASE_DIR, 'media', 'acoes_filtradas.csv')
-        
-        # Verifica se o arquivo existe
-        if not os.path.exists(csv_path):
-            mensagem = (
-                "<p style='padding: 20px; text-align: center;'>"
-                "<strong>Arquivo CSV não encontrado.</strong><br>"
-                "Execute o comando <code>python manage.py scrape_data</code> para gerar os dados."
-                "</p>"
-            )
-            return render(request, "structure/index.html", {"tabela_html": mensagem})
+           try:
+               # Tentar ler do Redis primeiro (dados compartilhados entre containers)
+               from django.core.cache import cache
+
+               dados_filtrados = None
+               metadata_cache = None
+
+               try:
+                   dados_filtrados = cache.get('acoes_filtradas')
+                   metadata_cache = cache.get('metadata')
+               except:
+                   # Redis não disponível (desenvolvimento local)
+                   pass
+
+               if dados_filtrados and metadata_cache:
+                   # Dados disponíveis no Redis (produção)
+                   df = pd.DataFrame(dados_filtrados)
+                   dados_desatualizados = False
+               else:
+                   # Fallback: ler do CSV local (desenvolvimento/local)
+                   csv_path = os.path.join(settings.BASE_DIR, 'media', 'acoes_filtradas.csv')
+
+                   if not os.path.exists(csv_path):
+                       mensagem = (
+                           "<p style='padding: 20px; text-align: center;'>"
+                           "<strong>Dados não disponíveis.</strong><br>"
+                           "Aguarde a próxima atualização automática ou execute <code>python manage.py scrape_data</code>."
+                           "</p>"
+                       )
+                       return render(request, "structure/index.html", {"tabela_html": mensagem})
+
+                   # Lê o CSV local
+                   df = pd.read_csv(
+                       csv_path,
+                       encoding='utf-8-sig',
+                       dtype=str
+                   )
+                   dados_desatualizados = True  # Dados locais podem estar desatualizados
         
         # Verifica se os dados estão desatualizados (para possível atualização automática)
         metadata_path = os.path.join(settings.BASE_DIR, 'media', 'metadata.json')
