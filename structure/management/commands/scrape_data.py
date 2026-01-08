@@ -13,6 +13,8 @@ from structure.filters import apply_filters
 from django.conf import settings
 import json
 from django.utils.timezone import now
+from datetime import datetime, timedelta
+from django.utils import timezone as dj_tz
 import requests
 import time
 import random
@@ -55,7 +57,16 @@ class Command(BaseCommand):
                     allowed = True
                     break
                 elif r.status_code == 403:
-                    # se 403, espera com backoff exponencial + jitter e tenta novamente
+                    # se 403, log diagnóstico (opcional) e espera com backoff exponencial + jitter e tenta novamente
+                    if os.environ.get('SCRAPE_VERBOSE_LOGGING') == '1':
+                        try:
+                            resp_headers = dict(r.headers) if getattr(r, 'headers', None) is not None else None
+                            body = getattr(r, 'text', '')
+                            if isinstance(body, str):
+                                body = body[:1000].replace('\n', ' ').replace('\r', ' ')
+                            logger.warning('Pre-scrape diagnostic: 403 detected (command). resp_headers=%s body_snip=%s', {k: resp_headers.get(k) for k in ['Server', 'X-Cache', 'Content-Type'] if resp_headers and k in resp_headers}, body)
+                        except Exception:
+                            logger.debug('Erro ao coletar dados de resposta para logging verboso (command)')
                     sleep_for = min(max_backoff, base_backoff * (2 ** (attempt - 1))) + random.uniform(0, jitter)
                     logger.warning("Pre-scrape check: recebido 403, tentativa %s/%s — dormindo %.1fs", attempt, max_attempts, sleep_for)
                     time.sleep(sleep_for)
@@ -76,19 +87,65 @@ class Command(BaseCommand):
             try:
                 media_dir = os.path.join(settings.BASE_DIR, 'media')
                 os.makedirs(media_dir, exist_ok=True)
-                metadata = {
-                    "last_scrape": now().isoformat(),
-                    "last_attempt": now().isoformat(),
-                    "status": "forbidden" if last_status == 403 else "error",
-                    "http_status": last_status,
-                    "source_url": url
-                }
-                metadata_path = os.path.join(settings.BASE_DIR, "media", "metadata.json")
-                meta_tmp = metadata_path + '.tmp'
-                with open(meta_tmp, "w", encoding="utf-8") as f:
-                    json.dump(metadata, f, ensure_ascii=False, indent=4)
-                os.replace(meta_tmp, metadata_path)
-                self.stdout.write(self.style.ERROR(f"Pre-check falhou (status={last_status}). metadata.json atualizado com status '{metadata['status']}'."))
+                # Calcula backoff exponencial persistido via forbidden_count
+                try:
+                    existing = None
+                    metadata_path = os.path.join(settings.BASE_DIR, "media", "metadata.json")
+                    if os.path.exists(metadata_path):
+                        try:
+                            with open(metadata_path, 'r', encoding='utf-8') as f:
+                                existing = json.load(f)
+                        except Exception:
+                            existing = None
+
+                    existing_count = int(existing.get('forbidden_count', 0)) if isinstance(existing, dict) else 0
+                    new_count = existing_count + 1
+
+                    base_hours = int(os.environ.get("SCRAPE_BACKOFF_BASE_HOURS", "2"))
+                    max_hours = int(os.environ.get("SCRAPE_BACKOFF_MAX_HOURS", "168"))
+                    backoff_hours = min(base_hours * (2 ** (new_count - 1)), max_hours)
+                    next_allowed = (now() + timedelta(hours=backoff_hours)).isoformat()
+
+                    metadata = {
+                        "last_scrape": now().isoformat(),
+                        "last_attempt": now().isoformat(),
+                        "next_allowed_attempt": next_allowed,
+                        "status": "forbidden" if last_status == 403 else "error",
+                        "http_status": last_status,
+                        "forbidden_count": new_count,
+                        "backoff_hours": backoff_hours,
+                        "source_url": url
+                    }
+
+                    # Só grava se não houver um next_allowed_attempt futuro já presente
+                    should_write = True
+                    try:
+                        if existing and existing.get('status') == 'forbidden' and existing.get('next_allowed_attempt'):
+                            existing_next = datetime.fromisoformat(existing.get('next_allowed_attempt'))
+                            if existing_next > now().astimezone(dj_tz.get_default_timezone()):
+                                should_write = False
+                    except Exception:
+                        should_write = True
+
+                    if should_write:
+                        meta_tmp = metadata_path + '.tmp'
+                        with open(meta_tmp, "w", encoding="utf-8") as f:
+                            json.dump(metadata, f, ensure_ascii=False, indent=4)
+                        os.replace(meta_tmp, metadata_path)
+                        self.stdout.write(self.style.ERROR(f"Pre-check falhou (status={last_status}). metadata.json atualizado com status '{metadata['status']}' (backoff={backoff_hours}h)."))
+                    else:
+                        # Atualiza apenas forbidden_count se estiver em cooldown para aumentar backoff
+                        try:
+                            existing = existing or {}
+                            existing['forbidden_count'] = new_count
+                            with open(metadata_path + '.tmp', 'w', encoding='utf-8') as f:
+                                json.dump(existing, f, ensure_ascii=False, indent=4)
+                            os.replace(metadata_path + '.tmp', metadata_path)
+                            self.stdout.write(self.style.WARNING("Pre-check falhou, mas já existe cooldown ativo — incrementado forbidden_count."))
+                        except Exception:
+                            self.stdout.write(self.style.WARNING("Pre-check falhou e não foi possível incrementar forbidden_count."))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"Falha ao calcular/gravar backoff metadata: {e}"))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Falha ao escrever metadata após pre-check: {e}"))
             return

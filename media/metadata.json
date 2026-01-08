@@ -1,8 +1,7 @@
 {
-    "last_scrape": "2026-01-03T14:50:09.375732+00:00",
-    "rows_raw": 0,
-    "rows_filtered": 0,
-    "source_url": "https://www.fundamentus.com.br/resultado.php",
-    "status": "error",
-    "error": "'charmap' codec can't encode character '\\u2714' in position 0: character maps to <undefined>"
+  "last_scrape": "2026-01-08T23:34:03.241423",
+  "last_attempt": "2026-01-08T23:34:03.241433",
+  "next_allowed_attempt": "2026-01-09T01:34:03.241398",
+  "status": "forbidden",
+  "http_status": 403
 }

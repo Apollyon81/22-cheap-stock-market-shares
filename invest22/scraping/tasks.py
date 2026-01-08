@@ -35,19 +35,19 @@ def scheduled_scrape():
                     meta = json.load(f)
 
                 # Se metadata indicar que o site bloqueou (forbidden), respeita cooldown
-                cooldown_hours = int(os.environ.get('SCRAPE_BLOCK_COOLDOWN_HOURS', '24'))
                 status = meta.get('status')
-                last_attempt = meta.get('last_attempt') or meta.get('last_scrape')
-                if status == 'forbidden' and last_attempt:
+                next_allowed = meta.get('next_allowed_attempt')
+                if status == 'forbidden' and next_allowed:
                     try:
-                        last_dt = datetime.fromisoformat(last_attempt)
-                        last_dt_sp = last_dt.astimezone(pytz.timezone('America/Sao_Paulo'))
-                        cutoff = now().astimezone(pytz.timezone('America/Sao_Paulo')) - timedelta(hours=cooldown_hours)
-                        if last_dt_sp > cutoff:
-                            logger.info('Site bloqueado recentemente (status=forbidden). Pulando execução (cooldown).')
+                        next_dt = datetime.fromisoformat(next_allowed)
+                        next_dt_sp = next_dt.astimezone(pytz.timezone('America/Sao_Paulo'))
+                        now_sp = now().astimezone(pytz.timezone('America/Sao_Paulo'))
+                        if next_dt_sp > now_sp:
+                            forbidden_count = meta.get('forbidden_count') if isinstance(meta, dict) else None
+                            logger.info('Site bloqueado recentemente (status=forbidden). Pulando execução (cooldown). forbidden_count=%s next_allowed=%s', forbidden_count, next_allowed)
                             return 'Site bloqueado - cooldown'
                     except Exception:
-                        logger.warning('Não foi possível parsear last_attempt, prosseguindo com scraping')
+                        logger.warning('Não foi possível parsear next_allowed_attempt, prosseguindo com scraping')
 
                 last_scrape = meta.get('last_scrape')
                 if last_scrape:
