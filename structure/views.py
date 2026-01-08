@@ -7,6 +7,7 @@ from django.conf import settings
 import logging
 from django.utils.timezone import now
 from datetime import datetime
+import pytz
 import json
 from django.utils import timezone as dj_tz
 
@@ -89,7 +90,8 @@ def _read_cached_table():
             if last:
                 try:
                     last_dt = datetime.fromisoformat(last)
-                    last_sp = last_dt.astimezone(dj_tz.get_default_timezone())
+                    tz_sp = pytz.timezone('America/Sao_Paulo')
+                    last_sp = last_dt.astimezone(tz_sp)
                     data_atual = last_sp.strftime("%d/%m/%Y %H:%M")
                 except Exception:
                     data_atual = last
@@ -124,7 +126,8 @@ def _read_cached_table():
     if data_atual is None and os.path.exists(final_path):
         try:
             mtime = os.path.getmtime(final_path)
-            dt = datetime.fromtimestamp(mtime, tz=dj_tz.get_default_timezone())
+            tz_sp = pytz.timezone('America/Sao_Paulo')
+            dt = datetime.fromtimestamp(mtime, tz=tz_sp)
             data_atual = dt.strftime("%d/%m/%Y %H:%M")
         except Exception:
             pass
@@ -220,8 +223,13 @@ def home(request):
             to_save.to_csv(tmp, index=False, encoding="utf-8-sig")
             os.replace(tmp, final_path)
 
+            # Adiciona timestamps locais (America/Sao_Paulo) para facilitar leitura nos logs/UI
+            tz_sp = pytz.timezone('America/Sao_Paulo')
+            last_scrape_iso = now().isoformat()
+            last_scrape_local = now().astimezone(tz_sp).strftime("%d/%m/%Y %H:%M:%S %z")
             metadata = {
-                "last_scrape": now().isoformat(),
+                "last_scrape": last_scrape_iso,
+                "last_scrape_local": last_scrape_local,
                 "rows_raw": len(df),
                 "rows_filtered": len(to_save) if hasattr(to_save, 'shape') else 0,
                 "source_url": url,
@@ -290,10 +298,14 @@ def home(request):
             backoff_hours = min(base_hours * (2 ** (new_count - 1)), max_hours)
 
             next_allowed = (now() + pd.Timedelta(hours=backoff_hours)).isoformat()
+            tz_sp = pytz.timezone('America/Sao_Paulo')
             metadata_forbidden = {
                 "last_scrape": meta_current.get("last_scrape") if 'meta_current' in locals() and isinstance(meta_current, dict) else None,
+                "last_scrape_local": meta_current.get("last_scrape_local") if 'meta_current' in locals() and isinstance(meta_current, dict) else None,
                 "last_attempt": now().isoformat(),
+                "last_attempt_local": now().astimezone(tz_sp).strftime("%d/%m/%Y %H:%M:%S %z"),
                 "next_allowed_attempt": next_allowed,
+                "next_allowed_attempt_local": datetime.fromisoformat(next_allowed).astimezone(tz_sp).strftime("%d/%m/%Y %H:%M:%S %z"),
                 "status": "forbidden",
                 "http_status": status,
                 "forbidden_count": new_count,

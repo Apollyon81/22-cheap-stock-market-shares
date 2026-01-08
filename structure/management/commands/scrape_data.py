@@ -15,6 +15,7 @@ import json
 from django.utils.timezone import now
 from datetime import datetime, timedelta
 from django.utils import timezone as dj_tz
+import pytz
 import requests
 import time
 import random
@@ -106,10 +107,14 @@ class Command(BaseCommand):
                     backoff_hours = min(base_hours * (2 ** (new_count - 1)), max_hours)
                     next_allowed = (now() + timedelta(hours=backoff_hours)).isoformat()
 
+                    tz_sp = pytz.timezone('America/Sao_Paulo')
                     metadata = {
                         "last_scrape": now().isoformat(),
+                        "last_scrape_local": now().astimezone(tz_sp).strftime("%d/%m/%Y %H:%M:%S %z"),
                         "last_attempt": now().isoformat(),
+                        "last_attempt_local": now().astimezone(tz_sp).strftime("%d/%m/%Y %H:%M:%S %z"),
                         "next_allowed_attempt": next_allowed,
+                        "next_allowed_attempt_local": (datetime.fromisoformat(next_allowed).astimezone(tz_sp).strftime("%d/%m/%Y %H:%M:%S %z")),
                         "status": "forbidden" if last_status == 403 else "error",
                         "http_status": last_status,
                         "forbidden_count": new_count,
@@ -244,8 +249,10 @@ class Command(BaseCommand):
             # ============================================================
             # PASSO 4 → METADATA (agora está no local correto)
             # ============================================================
+            tz_sp = pytz.timezone('America/Sao_Paulo')
             metadata = {
                 "last_scrape": now().isoformat(),
+                "last_scrape_local": now().astimezone(tz_sp).strftime("%d/%m/%Y %H:%M:%S %z"),
                 "rows_raw": len(df_raw),
                 "rows_filtered": len(df_final),
                 "source_url": url,

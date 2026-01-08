@@ -44,7 +44,10 @@ def scheduled_scrape():
                         now_sp = now().astimezone(pytz.timezone('America/Sao_Paulo'))
                         if next_dt_sp > now_sp:
                             forbidden_count = meta.get('forbidden_count') if isinstance(meta, dict) else None
-                            logger.info('Site bloqueado recentemente (status=forbidden). Pulando execução (cooldown). forbidden_count=%s next_allowed=%s', forbidden_count, next_allowed)
+                            # Log com hora local de São Paulo
+                            import pytz
+                            now_sp = now().astimezone(pytz.timezone('America/Sao_Paulo')).strftime("%d/%m/%Y %H:%M:%S %z")
+                            logger.info('Site bloqueado recentemente (status=forbidden). Pulando execução (cooldown). forbidden_count=%s next_allowed=%s now_sp=%s', forbidden_count, next_allowed, now_sp)
                             return 'Site bloqueado - cooldown'
                     except Exception:
                         logger.warning('Não foi possível parsear next_allowed_attempt, prosseguindo com scraping')
