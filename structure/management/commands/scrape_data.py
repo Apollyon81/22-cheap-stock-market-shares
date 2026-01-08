@@ -13,6 +13,12 @@ from structure.filters import apply_filters
 from django.conf import settings
 import json
 from django.utils.timezone import now
+import requests
+import time
+import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -22,6 +28,73 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         url = "https://www.fundamentus.com.br/resultado.php"
+
+        # Configuráveis por env vars
+        max_attempts = int(os.environ.get("SCRAPE_HTTP_MAX_ATTEMPTS", "4"))
+        base_backoff = float(os.environ.get("SCRAPE_HTTP_BACKOFF_BASE", "1.5"))
+        max_backoff = float(os.environ.get("SCRAPE_HTTP_MAX_BACKOFF", "60"))
+        jitter = float(os.environ.get("SCRAPE_HTTP_JITTER", "1.5"))
+
+        # Etapa 0: checagem preliminar via requests para detectar 403/ban antes de abrir o webdriver
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "pt-BR,pt;q=0.9"
+        })
+
+        attempt = 0
+        allowed = False
+        last_status = None
+        while attempt < max_attempts:
+            try:
+                attempt += 1
+                r = session.get(url, timeout=15)
+                last_status = r.status_code
+                if r.status_code == 200:
+                    allowed = True
+                    break
+                elif r.status_code == 403:
+                    # se 403, espera com backoff exponencial + jitter e tenta novamente
+                    sleep_for = min(max_backoff, base_backoff * (2 ** (attempt - 1))) + random.uniform(0, jitter)
+                    logger.warning("Pre-scrape check: recebido 403, tentativa %s/%s — dormindo %.1fs", attempt, max_attempts, sleep_for)
+                    time.sleep(sleep_for)
+                    continue
+                else:
+                    # para outros status 5xx/4xx, também tenta com backoff
+                    sleep_for = min(max_backoff, base_backoff * (2 ** (attempt - 1))) + random.uniform(0, jitter)
+                    logger.warning("Pre-scrape check: status %s, tentativa %s/%s — dormindo %.1fs", r.status_code, attempt, max_attempts, sleep_for)
+                    time.sleep(sleep_for)
+                    continue
+            except Exception as e:
+                sleep_for = min(max_backoff, base_backoff * (2 ** (attempt - 1))) + random.uniform(0, jitter)
+                logger.warning("Pre-scrape check: erro na tentativa %s/%s: %s — dormindo %.1fs", attempt, max_attempts, e, sleep_for)
+                time.sleep(sleep_for)
+
+        if not allowed:
+            # grava metadata com forbidden para evitar tentativas repetidas
+            try:
+                media_dir = os.path.join(settings.BASE_DIR, 'media')
+                os.makedirs(media_dir, exist_ok=True)
+                metadata = {
+                    "last_scrape": now().isoformat(),
+                    "last_attempt": now().isoformat(),
+                    "status": "forbidden" if last_status == 403 else "error",
+                    "http_status": last_status,
+                    "source_url": url
+                }
+                metadata_path = os.path.join(settings.BASE_DIR, "media", "metadata.json")
+                meta_tmp = metadata_path + '.tmp'
+                with open(meta_tmp, "w", encoding="utf-8") as f:
+                    json.dump(metadata, f, ensure_ascii=False, indent=4)
+                os.replace(meta_tmp, metadata_path)
+                self.stdout.write(self.style.ERROR(f"Pre-check falhou (status={last_status}). metadata.json atualizado com status '{metadata['status']}'."))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Falha ao escrever metadata após pre-check: {e}"))
+            return
+
+        # Pequeno atraso aleatório antes de abrir o webdriver para dispersar solicitações
+        time.sleep(random.uniform(0.5, 2.5))
 
         options = Options()
         options.add_argument("--headless=new")

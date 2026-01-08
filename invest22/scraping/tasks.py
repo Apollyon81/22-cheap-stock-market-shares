@@ -12,7 +12,7 @@ from django.conf import settings
 import logging
 import json
 from django.utils.timezone import now
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,22 @@ def scheduled_scrape():
             try:
                 with open(metadata_path, 'r', encoding='utf-8') as f:
                     meta = json.load(f)
+
+                # Se metadata indicar que o site bloqueou (forbidden), respeita cooldown
+                cooldown_hours = int(os.environ.get('SCRAPE_BLOCK_COOLDOWN_HOURS', '24'))
+                status = meta.get('status')
+                last_attempt = meta.get('last_attempt') or meta.get('last_scrape')
+                if status == 'forbidden' and last_attempt:
+                    try:
+                        last_dt = datetime.fromisoformat(last_attempt)
+                        last_dt_sp = last_dt.astimezone(pytz.timezone('America/Sao_Paulo'))
+                        cutoff = now().astimezone(pytz.timezone('America/Sao_Paulo')) - timedelta(hours=cooldown_hours)
+                        if last_dt_sp > cutoff:
+                            logger.info('Site bloqueado recentemente (status=forbidden). Pulando execução (cooldown).')
+                            return 'Site bloqueado - cooldown'
+                    except Exception:
+                        logger.warning('Não foi possível parsear last_attempt, prosseguindo com scraping')
+
                 last_scrape = meta.get('last_scrape')
                 if last_scrape:
                     try:
