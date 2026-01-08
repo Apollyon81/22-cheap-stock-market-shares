@@ -8,4 +8,5 @@ lxml
 selenium
 webdriver-manager
 beautifulsoup4
+boto3
 requests

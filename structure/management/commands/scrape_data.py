@@ -203,6 +203,19 @@ class Command(BaseCommand):
 
             self.stdout.write(self.style.SUCCESS("✔ metadata.json salvo."))
 
+            # Se S3 estiver configurado, faça upload dos artefatos para o bucket
+            bucket = os.environ.get('AWS_S3_BUCKET')
+            if bucket:
+                try:
+                    from structure.s3_utils import upload_file
+                    # Upload raw, filtered e metadata
+                    upload_file(raw_path, bucket, 'acoes_raw.csv')
+                    upload_file(final_path, bucket, 'acoes_filtradas.csv')
+                    upload_file(metadata_path, bucket, 'metadata.json')
+                    self.stdout.write(self.style.SUCCESS(f"✔ artifacts uploaded to s3://{bucket}/"))
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f"Warning: upload to S3 failed: {e}"))
+
 
         except Exception as e:
             # Em caso de erro, grava metadata com status de erro para facilitar debug

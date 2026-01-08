@@ -74,6 +74,28 @@ def _read_cached_table():
     tabela_html = None
     data_atual = None
 
+    # Se S3 estiver configurado, tente ler do S3 primeiro
+    bucket = os.environ.get('AWS_S3_BUCKET')
+    if bucket:
+        try:
+            from structure.s3_utils import get_csv_df, get_json
+            csv_io = get_csv_df(bucket, 'acoes_filtradas.csv')
+            df_final = pd.read_csv(csv_io, encoding='utf-8-sig', dtype=str)
+            tabela_html = df_final.to_html(classes="table table-striped", index=False, border=0)
+
+            meta = get_json(bucket, 'metadata.json')
+            last = meta.get('last_scrape')
+            if last:
+                try:
+                    last_dt = datetime.fromisoformat(last)
+                    last_sp = last_dt.astimezone(dj_tz.get_default_timezone())
+                    data_atual = last_sp.strftime("%d/%m/%Y %H:%M")
+                except Exception:
+                    data_atual = last
+            return tabela_html, data_atual
+        except Exception:
+            logger.warning("Falha ao ler arquivos do S3 — fallback para local")
+
     if os.path.exists(final_path):
         try:
             df_final = pd.read_csv(final_path, encoding="utf-8-sig", dtype=str)
