@@ -1,4 +1,6 @@
 from django.shortcuts import render
+import requests
+from bs4 import BeautifulSoup
 import pandas as pd
 import os
 from django.conf import settings
@@ -8,110 +10,145 @@ from datetime import datetime
 import json
 from django.utils import timezone as dj_tz
 
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 logger = logging.getLogger(__name__)
 
-def home(request):
-    try:
-        # Tentar ler do Redis primeiro (dados compartilhados entre containers)
-        from django.core.cache import cache
 
-        dados_filtrados = None
-        metadata_cache = None
+def _fetch_table_from_site(url: str):
+    """Tenta obter a tabela do site usando headers de navegador e retries.
 
+    Levanta requests.HTTPError em caso de resposta ruim (403, 500, etc.)
+    ou ValueError se não encontrar a tabela.
+    """
+    session = requests.Session()
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://www.google.com/",
+        "Connection": "keep-alive",
+    }
+    session.headers.update(headers)
+
+    retries = Retry(total=2, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504])
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount("https://", adapter)
+
+    r = session.get(url, timeout=15)
+    r.raise_for_status()
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    # Preferir o elemento com id 'resultado' (mesma referência do scraper anterior)
+    table_el = soup.find(id="resultado")
+    table = table_el if table_el is not None else soup.find("table")
+    if table is None:
+        raise ValueError("Tabela não encontrada no HTML")
+
+    df = pd.read_html(str(table))[0]
+    return df
+
+
+def _read_cached_table():
+    """Lê `media/acoes_filtradas.csv` e `media/metadata.json` como fallback."""
+    media_dir = os.path.join(settings.BASE_DIR, "media")
+    final_path = os.path.join(media_dir, "acoes_filtradas.csv")
+    metadata_path = os.path.join(media_dir, "metadata.json")
+
+    tabela_html = None
+    data_atual = None
+
+    if os.path.exists(final_path):
         try:
-            dados_filtrados = cache.get('acoes_filtradas')
-            metadata_cache = cache.get('metadata')
-        except:
-            # Redis não disponível (desenvolvimento local)
-            pass
+            df_final = pd.read_csv(final_path, encoding="utf-8-sig", dtype=str)
+            tabela_html = df_final.to_html(classes="table table-striped", index=False, border=0)
+        except Exception as e:
+            logger.warning("Falha ao ler acoes_filtradas.csv: %s", e)
 
-        if dados_filtrados and metadata_cache:
-            # Dados disponíveis no Redis (produção)
-            df = pd.DataFrame(dados_filtrados)
-            dados_desatualizados = False
-        else:
-            # Fallback: ler do CSV local (desenvolvimento/local)
-            csv_path = os.path.join(settings.BASE_DIR, 'media', 'acoes_filtradas.csv')
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            last = meta.get("last_scrape")
+            if last:
+                try:
+                    last_dt = datetime.fromisoformat(last)
+                    last_sp = last_dt.astimezone(dj_tz.get_default_timezone())
+                    data_atual = last_sp.strftime("%d/%m/%Y %H:%M")
+                except Exception:
+                    data_atual = last
+        except Exception as e:
+            logger.warning("Falha ao ler metadata.json: %s", e)
 
-            if not os.path.exists(csv_path):
-                mensagem = (
-                    "<p style='padding: 20px; text-align: center;'>"
-                    "<strong>Dados não disponíveis.</strong><br>"
-                    "Aguarde a próxima atualização automática ou execute <code>python manage.py scrape_data</code>."
-                    "</p>"
-                )
-                return render(request, "structure/index.html", {"tabela_html": mensagem})
+    return tabela_html, data_atual
 
-            # Lê o CSV local
-            df = pd.read_csv(
-                csv_path,
-                encoding='utf-8-sig',
-                dtype=str
-            )
-            dados_desatualizados = True  # Dados locais podem estar desatualizados
 
-        # Verifica se os dados estão desatualizados (para possível atualização automática)
-        metadata_path = os.path.join(settings.BASE_DIR, 'media', 'metadata.json')
-        data_atual = ''
+def home(request):
+    url = "https://www.fundamentus.com.br/resultado.php"
 
-        if os.path.exists(metadata_path):
+    # Tenta primeiro buscar no site
+    try:
+        df = _fetch_table_from_site(url)
+        # Aplicar o filtro mínimo (mesma regra anterior)
+        if "Liquidez" in df.columns:
             try:
-                with open(metadata_path, 'r', encoding='utf-8') as f:
-                    meta = json.load(f)
-                last_scrape = meta.get("last_scrape")
-                if last_scrape:
-                    # converte para timezone local e formata como dd/mm/YYYY
-                    try:
-                        last_dt = datetime.fromisoformat(last_scrape)
-                        # converte para timezone do Django
-                        if last_dt.tzinfo is None:
-                            last_dt = dj_tz.make_aware(last_dt, dj_tz.UTC)
-                        last_local = last_dt.astimezone(dj_tz.get_current_timezone())
-                        data_atual = ' - ' + last_local.strftime('%d/%m/%Y')
-                        hoje = now().astimezone(dj_tz.get_current_timezone()).date()
-                        dados_desatualizados = (last_local.date() < hoje)
-                    except Exception:
-                        # falha ao parsear -> marca como desatualizado para acionar scraping
-                        dados_desatualizados = True
+                # converter pra numérico, tratar separadores se necessário
+                df["Liquidez"] = (
+                    df["Liquidez"].astype(str).str.replace("\.", "", regex=False).str.replace(",", ".", regex=False)
+                ).astype(float)
+                df = df[df["Liquidez"] > 1_000_000]
             except Exception:
-                # Metadata não pôde ser lido
-                dados_desatualizados = True
-        else:
-            # Metadata não existe = nunca foi feito scraping
-            dados_desatualizados = True
+                # Se falhar na conversão, não aplica filtro
+                logger.debug("Falha ao converter Liquidez — pulando filtro de liquidez")
 
-        # Verifica se o DataFrame está vazio
-        if df.empty:
-            mensagem = (
-                "<p style='padding: 20px; text-align: center;'>"
-                "<strong>Nenhum dado disponível.</strong><br>"
-                "O arquivo CSV está vazio. Execute o comando <code>python manage.py scrape_data</code> novamente."
-                "</p>"
-            )
-            return render(request, "structure/index.html", {"tabela_html": mensagem})
+        tabela_html = df.to_html(classes="table table-striped", index=False, border=0)
+        data_atual = now().astimezone(dj_tz.get_default_timezone()).strftime("%d/%m/%Y %H:%M")
 
-        # Converte diretamente para HTML (formatação já feita em filters.py)
-        tabela_html = df.to_html(
-            classes="table table-striped",
-            index=False,
-            border=0
-        )
+        # Opcional: atualizar metadata local para caching (não persiste se não desejado)
+        try:
+            media_dir = os.path.join(settings.BASE_DIR, "media")
+            os.makedirs(media_dir, exist_ok=True)
+            final_path = os.path.join(media_dir, "acoes_filtradas.csv")
+            tmp = final_path + ".tmp"
+            df.to_csv(tmp, index=False, encoding="utf-8-sig")
+            os.replace(tmp, final_path)
+
+            metadata = {
+                "last_scrape": now().isoformat(),
+                "rows_filtered": len(df),
+                "source_url": url,
+                "status": "success"
+            }
+            metadata_path = os.path.join(media_dir, "metadata.json")
+            with open(metadata_path + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=4)
+            os.replace(metadata_path + ".tmp", metadata_path)
+        except Exception as e:
+            logger.warning("Falha ao gravar cache em media/: %s", e)
 
         return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
 
-    except FileNotFoundError:
-        mensagem = (
-            "<p style='padding: 20px; text-align: center;'>"
-            "<strong>Arquivo CSV não encontrado.</strong><br>"
-            "Execute o comando <code>python manage.py scrape_data</code> para gerar os dados."
-            "</p>"
-        )
-        return render(request, "structure/index.html", {"tabela_html": mensagem})
+    except requests.HTTPError as e:
+        status = getattr(e.response, "status_code", None)
+        logger.warning("Erro HTTP ao buscar site: %s (status=%s)", e, status)
+        # Fallback: ler cache local
+        tabela_html, data_atual = _read_cached_table()
+        if tabela_html is not None:
+            # Adiciona nota que foi usado cache
+            tabela_html = tabela_html + "<p><em>Dados carregados do cache local.</em></p>"
+            if not data_atual:
+                data_atual = now().astimezone(dj_tz.get_default_timezone()).strftime("%d/%m/%Y %H:%M")
+            return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
+        return render(request, "structure/index.html", {"tabela_html": f"<p>Erro: {e}</p>", "data_atual": None})
+
     except Exception as e:
-        logger.exception("Erro ao carregar página principal:")
-        mensagem = (
-            f"<p style='padding: 20px; text-align: center; color: red;'>"
-            f"<strong>Erro ao processar dados:</strong><br>{str(e)}"
-            f"</p>"
-        )
-        return render(request, "structure/index.html", {"tabela_html": mensagem})
+        logger.exception("Erro ao buscar/parsear tabela:")
+        tabela_html, data_atual = _read_cached_table()
+        if tabela_html is not None:
+            tabela_html = tabela_html + "<p><em>Dados carregados do cache local.</em></p>"
+            return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
+        return render(request, "structure/index.html", {"tabela_html": f"<p>Erro: {e}</p>", "data_atual": None})
