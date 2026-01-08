@@ -102,6 +102,32 @@ def _read_cached_table():
 def home(request):
     url = "https://www.fundamentus.com.br/resultado.php"
 
+    # Checa metadata para evitar tentar fetch repetidas vezes quando o site bloqueia (403)
+    media_dir = os.path.join(settings.BASE_DIR, "media")
+    metadata_path = os.path.join(media_dir, "metadata.json")
+    cooldown_hours = int(os.environ.get("SCRAPE_BLOCK_COOLDOWN_HOURS", "24"))
+    try:
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                meta_current = json.load(f)
+            if meta_current.get("status") == "forbidden":
+                last_attempt = meta_current.get("last_attempt") or meta_current.get("last_scrape")
+                if last_attempt:
+                    try:
+                        last_dt = datetime.fromisoformat(last_attempt)
+                        cutoff = now().astimezone(dj_tz.get_default_timezone()) - pd.Timedelta(hours=cooldown_hours)
+                        if last_dt.astimezone(dj_tz.get_default_timezone()) > cutoff:
+                            # Dentro do período de cooldown: usa cache imediatamente
+                            tabela_html, data_atual = _read_cached_table()
+                            if tabela_html is not None:
+                                tabela_html = tabela_html + "<p><em>Dados carregados do cache local (site bloqueado).</em></p>"
+                                return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
+                    except Exception:
+                        pass
+    except Exception:
+        # não bloqueia a execução se metadata estiver corrompido
+        pass
+
     # Tenta primeiro buscar no site
     try:
         df = _fetch_table_from_site(url)
@@ -170,6 +196,20 @@ def home(request):
     except requests.HTTPError as e:
         status = getattr(e.response, "status_code", None)
         logger.warning("Erro HTTP ao buscar site: %s (status=%s)", e, status)
+        # Se for 403, grava metadata com status forbidden e last_attempt, para evitar loop de tentativas
+        try:
+            os.makedirs(media_dir, exist_ok=True)
+            metadata_forbidden = {
+                "last_scrape": meta_current.get("last_scrape") if 'meta_current' in locals() and isinstance(meta_current, dict) else None,
+                "last_attempt": now().isoformat(),
+                "status": "forbidden",
+                "source_url": url,
+            }
+            with open(metadata_path + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(metadata_forbidden, f, ensure_ascii=False, indent=4)
+            os.replace(metadata_path + ".tmp", metadata_path)
+        except Exception:
+            logger.warning("Não foi possível gravar metadata de forbidden")
         # Fallback: ler cache local
         tabela_html, data_atual = _read_cached_table()
         if tabela_html is not None:
