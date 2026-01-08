@@ -12,6 +12,7 @@ from django.utils import timezone as dj_tz
 
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from structure.filters import apply_filters
 
 logger = logging.getLogger(__name__)
 
@@ -93,33 +94,56 @@ def home(request):
     # Tenta primeiro buscar no site
     try:
         df = _fetch_table_from_site(url)
-        # Aplicar o filtro mínimo (mesma regra anterior)
-        if "Liquidez" in df.columns:
-            try:
-                # converter pra numérico, tratar separadores se necessário
-                df["Liquidez"] = (
-                    df["Liquidez"].astype(str).str.replace("\.", "", regex=False).str.replace(",", ".", regex=False)
-                ).astype(float)
-                df = df[df["Liquidez"] > 1_000_000]
-            except Exception:
-                # Se falhar na conversão, não aplica filtro
-                logger.debug("Falha ao converter Liquidez — pulando filtro de liquidez")
+        # Salva raw (sem alterações) para referência e para aplicar filtros de forma consistente
+        media_dir = os.path.join(settings.BASE_DIR, "media")
+        try:
+            os.makedirs(media_dir, exist_ok=True)
+            raw_path = os.path.join(media_dir, "acoes_raw.csv")
+            raw_tmp = raw_path + ".tmp"
+            df.to_csv(raw_tmp, index=False, encoding="utf-8-sig")
+            os.replace(raw_tmp, raw_path)
+        except Exception as e:
+            logger.warning("Falha ao salvar acoes_raw.csv: %s", e)
 
-        tabela_html = df.to_html(classes="table table-striped", index=False, border=0)
+        tabela_html = None
+        df_final = None
+        try:
+            # Usa a função de filtros compartilhada para gerar a lista de Papéis
+            lista_final = apply_filters(df)
+            lista_final = [x[0] if isinstance(x, (list, tuple)) else x for x in lista_final]
+            lista_final = [str(x).strip() for x in lista_final]
+
+            # Reabre o raw para garantir consistência e monta df_final
+            df_raw_reload = pd.read_csv(raw_path, encoding="utf-8-sig", dtype=str)
+            if 'Papel' in df_raw_reload.columns:
+                df_final = df_raw_reload[df_raw_reload['Papel'].isin(lista_final)]
+                df_final = df_final.set_index('Papel').loc[lista_final].reset_index()
+                colunas_finais = ['Papel', 'Liq.2meses', 'Mrg Ebit', 'EV/EBIT', 'P/L']
+                colunas_existentes = [c for c in colunas_finais if c in df_final.columns]
+                df_final = df_final[colunas_existentes]
+                tabela_html = df_final.to_html(classes="table table-striped", index=False, border=0)
+        except Exception as e:
+            logger.warning("Falha ao aplicar filtros: %s", e)
+
+        # Se por algum motivo não foi possível montar a tabela filtrada, exibe raw
+        if tabela_html is None:
+            tabela_html = df.to_html(classes="table table-striped", index=False, border=0)
+
         data_atual = now().astimezone(dj_tz.get_default_timezone()).strftime("%d/%m/%Y %H:%M")
 
-        # Opcional: atualizar metadata local para caching (não persiste se não desejado)
+        # Salva resultado filtrado (se disponível) e metadata
         try:
-            media_dir = os.path.join(settings.BASE_DIR, "media")
             os.makedirs(media_dir, exist_ok=True)
             final_path = os.path.join(media_dir, "acoes_filtradas.csv")
             tmp = final_path + ".tmp"
-            df.to_csv(tmp, index=False, encoding="utf-8-sig")
+            to_save = df_final if df_final is not None else df
+            to_save.to_csv(tmp, index=False, encoding="utf-8-sig")
             os.replace(tmp, final_path)
 
             metadata = {
                 "last_scrape": now().isoformat(),
-                "rows_filtered": len(df),
+                "rows_raw": len(df),
+                "rows_filtered": len(to_save) if hasattr(to_save, 'shape') else 0,
                 "source_url": url,
                 "status": "success"
             }
