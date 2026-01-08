@@ -50,7 +50,18 @@ def _fetch_table_from_site(url: str):
     if table is None:
         raise ValueError("Tabela não encontrada no HTML")
 
-    df = pd.read_html(str(table))[0]
+    # Extrai o texto das células para preservar exatamente o formato original
+    rows = []
+    for tr in table.find_all('tr'):
+        tds = [td.get_text(strip=True) for td in tr.find_all(['td', 'th'])]
+        if tds:
+            rows.append(tds)
+
+    df = pd.DataFrame(rows[1:], columns=rows[0])
+
+    # Garantir que todas as colunas sejam strings (preservar formatação BR como '9,99')
+    for col in df.columns:
+        df[col] = df[col].apply(lambda x: str(x) if pd.notna(x) and str(x) != 'nan' else '')
     return df
 
 
