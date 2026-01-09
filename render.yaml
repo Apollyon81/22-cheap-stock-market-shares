@@ -7,6 +7,10 @@ services:
       python manage.py collectstatic --noinput
     startCommand: gunicorn invest22.wsgi:application
     staticPublishPath: ./staticfiles
+    disk:
+      name: cache-disk
+      mountPath: /app/media
+      sizeGB: 1
     envVars:
       - key: REDIS_URL
         fromService:
