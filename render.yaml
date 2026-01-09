@@ -35,10 +35,12 @@ services:
     name: celery-beat
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: celery -A invest22 beat --loglevel=info
+    startCommand: TZ=America/Sao_Paulo celery -A invest22 beat --loglevel=info
     envVars:
       - key: REDIS_URL
         fromService:
           type: redis
           name: celery-redis
           property: connectionString
+      - key: TZ
+        value: America/Sao_Paulo

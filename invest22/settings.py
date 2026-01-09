@@ -88,16 +88,25 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'America/Sao_Paulo'
 
+# Cache Configuration (Redis para compartilhar dados entre worker e web)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),  # DB 1 para cache
+    }
+}
+
+# Importação opcional do Celery para evitar erro durante deploy
 try:
     from celery.schedules import crontab
-except Exception:
+except (ImportError, ModuleNotFoundError):
     crontab = None
 
 if crontab is not None:
     CELERY_BEAT_SCHEDULE = {
         'update-stock-data': {
             'task': 'invest22.scraping.tasks.scheduled_scrape',
-            'schedule': crontab(hour=18, minute=0),  # 18:00 America/Sao_Paulo
+            'schedule': crontab(hour=18, minute=0),
         },
     }
 else:

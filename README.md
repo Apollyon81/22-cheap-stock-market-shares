@@ -50,3 +50,21 @@ Desenvolver um site que apresenta uma lista atualizada das 20 ações mais barat
 ## 📅 Prazo
 
 - Conclusão estimada: *30 dias*
+
+---
+
+## 🔍 Diagnóstico de bloqueios (HTTP 403)
+
+Se o scraping estiver retornando HTTP 403 (Forbidden) em produção, é útil habilitar logs verbosos temporariamente para diagnosticar a causa.
+
+- Variável: `SCRAPE_VERBOSE_LOGGING=1` (habilita logs adicionais em `views` e no comando `scrape_data`).
+- O que é logado (resumido): trechos dos `response` headers (Server, X-Cache, Content-Type), um snippet seguro do corpo da resposta (até 1000 caracteres) e os `request` headers relevantes (User-Agent, Accept, Referer) — nada de credenciais.
+- Use junto com `SCRAPE_HTTP_MAX_ATTEMPTS=1` para testar com menos tentativas e ver rapidamente os logs.
+
+Possíveis causas que os logs ajudam a identificar:
+- Bloqueio por IP (Render): procure por headers como `Via`, `X-Cache` ou por mensagens no body do servidor.
+- Bloqueio por User-Agent: compare o `User-Agent` enviado com o que aparece nos logs.
+- Bloqueio por frequência: observe se o site retorna 403 intermitente; ajuste `SCRAPE_BACKOFF_BASE_HOURS` / `SCRAPE_BACKOFF_MAX_HOURS` em produção.
+- Proteção anti-bot: mensagens no corpo podem indicar detecção de bot/Selenium.
+
+Desabilite `SCRAPE_VERBOSE_LOGGING` após coleta de logs — ele é só para diagnóstico temporário.
