@@ -42,10 +42,10 @@ def _fetch_table_from_site(url: str):
     adapter = HTTPAdapter(max_retries=retries)
     session.mount("https://", adapter)
 
-        # Pequena pausa para simular comportamento humano
-        time.sleep(1)
-        r = session.get(url, timeout=15)
-    r.raise_for_status()
+    # Pequena pausa para simular comportamento humano  # ✅ 4 espaços (CORRETO)
+    time.sleep(1)                                          # ✅ 4 espaços (CORRETO)
+    r = session.get(url, timeout=15)                       # ✅ 4 espaços (CORRETO)
+    r.raise_for_status()    
 
     soup = BeautifulSoup(r.text, "html.parser")
     # Preferir o elemento com id 'resultado' (mesma referência do scraper anterior)
