@@ -17,12 +17,21 @@ class Command(BaseCommand):
             self.stdout.write("🔄 Verificando cache Redis...")
 
             # Verificar se cache já tem dados
-            dados_existentes = cache.get('acoes_filtradas')
-            metadata_existente = cache.get('metadata')
+            try:
+                dados_existentes = cache.get('acoes_filtradas')
+                metadata_existente = cache.get('metadata')
 
-            if dados_existentes and metadata_existente:
+                if dados_existentes and metadata_existente:
+                    self.stdout.write(
+                        self.style.SUCCESS("✅ Cache Redis já contém dados - pulando inicialização")
+                    )
+                    return
+            except Exception as e:
                 self.stdout.write(
-                    self.style.SUCCESS("✅ Cache Redis já contém dados - pulando inicialização")
+                    self.style.ERROR(f"❌ Erro ao conectar com Redis: {e}")
+                )
+                self.stdout.write(
+                    self.style.WARNING("⚠️ Redis não disponível - abortando inicialização")
                 )
                 return
 
@@ -128,4 +137,7 @@ class Command(BaseCommand):
                 self.style.ERROR(f"❌ Erro durante inicialização do cache: {e}")
             )
             logger.exception("Erro no comando initialize_cache")
-            raise
+            # Não lança erro - permite que o deploy continue mesmo sem cache
+            self.stdout.write(
+                self.style.WARNING("⚠️ Deploy continuará mesmo com erro de cache")
+            )

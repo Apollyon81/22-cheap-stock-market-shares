@@ -42,7 +42,9 @@ def _fetch_table_from_site(url: str):
     adapter = HTTPAdapter(max_retries=retries)
     session.mount("https://", adapter)
 
-    r = session.get(url, timeout=15)
+        # Pequena pausa para simular comportamento humano
+        time.sleep(1)
+        r = session.get(url, timeout=15)
     r.raise_for_status()
 
     soup = BeautifulSoup(r.text, "html.parser")
