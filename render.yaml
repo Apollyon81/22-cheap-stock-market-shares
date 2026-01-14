@@ -5,14 +5,27 @@ services:
     buildCommand: |
       pip install -r requirements.txt
       python manage.py collectstatic --noinput
+      python manage.py initialize_cache
     startCommand: gunicorn invest22.wsgi:application
     staticPublishPath: ./staticfiles
+    disk:
+      name: cache-disk
+      mountPath: /app/media
+      sizeGB: 1
     envVars:
       - key: REDIS_URL
         fromService:
           type: redis
           name: celery-redis
           property: connectionString
+      - key: AWS_S3_BUCKET
+        value: ${AWS_S3_BUCKET}
+      - key: AWS_ACCESS_KEY_ID
+        value: ${AWS_ACCESS_KEY_ID}
+      - key: AWS_SECRET_ACCESS_KEY
+        value: ${AWS_SECRET_ACCESS_KEY}
+      - key: AWS_DEFAULT_REGION
+        value: ${AWS_DEFAULT_REGION}
 
   - type: redis
     name: celery-redis
@@ -30,6 +43,14 @@ services:
           type: redis
           name: celery-redis
           property: connectionString
+      - key: AWS_S3_BUCKET
+        value: ${AWS_S3_BUCKET}
+      - key: AWS_ACCESS_KEY_ID
+        value: ${AWS_ACCESS_KEY_ID}
+      - key: AWS_SECRET_ACCESS_KEY
+        value: ${AWS_SECRET_ACCESS_KEY}
+      - key: AWS_DEFAULT_REGION
+        value: ${AWS_DEFAULT_REGION}
 
   - type: worker
     name: celery-beat
@@ -44,3 +65,11 @@ services:
           property: connectionString
       - key: TZ
         value: America/Sao_Paulo
+      - key: AWS_S3_BUCKET
+        value: ${AWS_S3_BUCKET}
+      - key: AWS_ACCESS_KEY_ID
+        value: ${AWS_ACCESS_KEY_ID}
+      - key: AWS_SECRET_ACCESS_KEY
+        value: ${AWS_SECRET_ACCESS_KEY}
+      - key: AWS_DEFAULT_REGION
+        value: ${AWS_DEFAULT_REGION}

@@ -1,7 +1,8 @@
 {
-  "last_scrape": "2026-01-08T23:34:03.241423",
-  "last_attempt": "2026-01-08T23:34:03.241433",
-  "next_allowed_attempt": "2026-01-09T01:34:03.241398",
-  "status": "forbidden",
-  "http_status": 403
+    "last_scrape": "2026-01-14T19:33:48.472290+00:00",
+    "last_scrape_local": "14/01/2026 16:33:48 -0300",
+    "rows_raw": 997,
+    "rows_filtered": 22,
+    "source_url": "https://www.fundamentus.com.br/resultado.php",
+    "status": "success"
 }

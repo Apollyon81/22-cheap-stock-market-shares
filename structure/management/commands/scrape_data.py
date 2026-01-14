@@ -267,6 +267,21 @@ class Command(BaseCommand):
 
             self.stdout.write(self.style.SUCCESS("✔ metadata.json salvo."))
 
+            # PASSO 5: UPLOAD PARA S3 (se configurado)
+            bucket = os.environ.get('AWS_S3_BUCKET')
+            if bucket:
+                try:
+                    from structure.s3_utils import upload_file
+
+                    # Upload dos arquivos gerados
+                    upload_file(final_path, bucket, 'acoes_filtradas.csv')
+                    upload_file(metadata_path, bucket, 'metadata.json')
+                    upload_file(raw_path, bucket, 'acoes_raw.csv')
+
+                    self.stdout.write(self.style.SUCCESS(f"✔ Arquivos enviados para S3: s3://{bucket}/"))
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f"⚠️ Erro no upload S3: {e}"))
+
             # Se S3 estiver configurado, faça upload dos artefatos para o bucket
             bucket = os.environ.get('AWS_S3_BUCKET')
             if bucket:
