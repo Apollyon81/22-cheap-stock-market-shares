@@ -140,6 +140,16 @@ def _read_cached_table():
 def home(request):
     url = "https://www.fundamentus.com.br/resultado.php"
 
+    # ESTRATÉGIA CACHE-FIRST: Sempre tenta cache primeiro para evitar timeouts
+    logger.info("Verificando cache antes de scraping...")
+    tabela_html, data_atual = _read_cached_table()
+    if tabela_html is not None:
+        logger.info("Cache encontrado - retornando dados imediatamente")
+        return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
+
+    # Só chega aqui se NÃO houver cache disponível
+    logger.warning("Nenhum cache encontrado - será necessário fazer scraping (pode ser lento)")
+
     # Checa metadata para evitar fetch repetidas vezes quando o site bloqueia (403)
     media_dir = os.path.join(settings.BASE_DIR, "media")
     metadata_path = os.path.join(media_dir, "metadata.json")
@@ -157,14 +167,15 @@ def home(request):
                     next_dt = datetime.fromisoformat(next_allowed)
                     now_dt = now().astimezone(dj_tz.get_default_timezone())
                     if next_dt.astimezone(dj_tz.get_default_timezone()) > now_dt:
-                        # Ainda em cooldown → usa cache imediatamente
-                        tabela_html, data_atual = _read_cached_table()
-                        if tabela_html is not None:
-                            nota = "Dados carregados do cache local (site bloqueado)."
-                            if data_atual:
-                                nota = f"{nota} Última atualização: {data_atual}."
-                            tabela_html = tabela_html + f"<p><em>{nota}</em></p>"
-                            return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
+                        # Ainda em cooldown → fallback para dados hardcoded (emergência)
+                        logger.warning("Site em cooldown - usando dados de emergência")
+                        tabela_emergencia = """
+                        <tr><td>EMERGENCIA</td><td>Cache indisponível</td><td>Site bloqueado</td><td>Aguardar atualização</td></tr>
+                        """
+                        return render(request, "structure/index.html", {
+                            "tabela_html": f'<table class="table table-striped">{tabela_emergencia}</table>',
+                            "data_atual": "Sistema em modo emergência"
+                        })
                 except Exception:
                     # se parse falhar, caímos para o comportamento anterior (tentar buscar)
                     pass
@@ -172,9 +183,23 @@ def home(request):
         # não bloqueia a execução se metadata estiver corrompido
         pass
 
-    # Tenta primeiro buscar no site
+    # Tenta primeiro buscar no site (com circuit breaker)
     try:
-        df = _fetch_table_from_site(url)
+        # Circuit breaker: timeout de 30s para evitar travamentos
+        import signal
+
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Scraping excedeu timeout de segurança")
+
+        # Define alarme para 30 segundos
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(30)
+
+        try:
+            df = _fetch_table_from_site(url)
+        finally:
+            # Cancela o alarme
+            signal.alarm(0)
         # Salva raw (sem alterações) para referência e para aplicar filtros de forma consistente
         media_dir = os.path.join(settings.BASE_DIR, "media")
         try:
@@ -245,6 +270,16 @@ def home(request):
             logger.warning("Falha ao gravar cache em media/: %s", e)
 
         return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
+
+    except TimeoutError:
+        logger.error("Circuit breaker ativado: scraping excedeu 30s - retornando emergência")
+        tabela_emergencia = """
+        <tr><td>SISTEMA</td><td>Timeout de segurança</td><td>Scraping interrompido</td><td>Cache será atualizado em background</td></tr>
+        """
+        return render(request, "structure/index.html", {
+            "tabela_html": f'<table class="table table-striped">{tabela_emergencia}</table>',
+            "data_atual": "Sistema em proteção contra timeout"
+        })
 
     except requests.HTTPError as e:
         status = getattr(e.response, "status_code", None)
