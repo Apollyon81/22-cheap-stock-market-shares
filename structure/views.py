@@ -143,12 +143,37 @@ def home(request):
     # ESTRATÉGIA CACHE-FIRST: Sempre tenta cache primeiro para evitar timeouts
     logger.info("Verificando cache antes de scraping...")
     tabela_html, data_atual = _read_cached_table()
+
+    # Verifica se dados são muito antigos (> 6 horas) e força atualização
+    should_force_update = False
     if tabela_html is not None:
-        logger.info("Cache encontrado - retornando dados imediatamente")
+        try:
+            from django.conf import settings
+            metadata_path = os.path.join(settings.BASE_DIR, "media", "metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                    last_scrape = meta.get("last_scrape")
+                    if last_scrape:
+                        from datetime import datetime
+                        last_dt = datetime.fromisoformat(last_scrape.replace('Z', '+00:00'))
+                        age_hours = (now() - last_dt).total_seconds() / 3600
+                        if age_hours > 6:  # Mais de 6 horas
+                            logger.info(".1f")
+                            should_force_update = True
+                            tabela_html = None  # Força novo scraping
+        except Exception as e:
+            logger.warning(f"Erro verificando idade dos dados: {e}")
+
+    if tabela_html is not None and not should_force_update:
+        logger.info("Cache encontrado e atualizado - retornando dados imediatamente")
         return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
 
-    # Só chega aqui se NÃO houver cache disponível
-    logger.warning("Nenhum cache encontrado - será necessário fazer scraping (pode ser lento)")
+    # Só chega aqui se NÃO houver cache disponível OU dados muito antigos
+    if should_force_update:
+        logger.info("Dados antigos detectados - forçando atualização automática...")
+    else:
+        logger.warning("Nenhum cache encontrado - será necessário fazer scraping (pode ser lento)")
 
     # Checa metadata para evitar fetch repetidas vezes quando o site bloqueia (403)
     media_dir = os.path.join(settings.BASE_DIR, "media")
@@ -393,7 +418,7 @@ def home(request):
             tabela_html = tabela_html + f"<p><em>{nota}</em></p>"
             return render(request, "structure/index.html", {"tabela_html": tabela_html, "data_atual": data_atual})
         return render(request, "structure/index.html", {"tabela_html": f"<p>Erro: {e}</p>", "data_atual": None})
-
+        
     except Exception as e:
         logger.exception("Erro ao buscar/parsear tabela:")
         tabela_html, data_atual = _read_cached_table()
